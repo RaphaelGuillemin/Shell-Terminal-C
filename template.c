@@ -1,49 +1,50 @@
 #define true 1
 #define false 0
 #define bool int
+#define max_len 2000
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-char* readLine() {}
+
+// TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
+char* readLine() {
+    char *allocated = (char *) malloc(max_len + 1);
+
+    if (NULL == allocated) {
+        return NULL;
+    }
+
+    size_t cc = 0;
+    for(; cc < max_len; ++cc){
+        int chr = getc(stdin);
+        if (EOF == chr || '\n' == chr) {
+            break;
+        } else {
+            allocated[cc] = (char) chr;
+        }
+    }
+    if (cc == max_len) {
+        free(allocated);
+        printf("Argument list too long.");
+    }
+    allocated[cc] = '\0';
+    return allocated;
+}
 
 void shell() {
-    int lineSize = 20;
-    int character;
-    int pos = 0;
-    char* line = malloc(lineSize * sizeof(char));
-    if (line == NULL){
-        exit(-1);
-    }
     do {
-        character = getchar();
+        char *line = readLine();
+        printf("Line : %s \n", line);
 
-        //if line is longer than the lineSize
-        if (pos >= lineSize){
-            lineSize = lineSize * 2;
-            line = realloc(line,lineSize);
-        }
-
-        //adds characters to the line while it's not \n
-        if (character != 10 && character != EOF) {
-            line[pos] = character;
-            pos++;
-        } else {
-            line[pos] = '\0';
-            printf("Line : %s \n", line); //CHANGE THAT TO READLINE CALL
-            free(line);
-            line = malloc(lineSize * sizeof(char));
-            pos = 0;
-        }
-
-        // exit if user types exit
-        if (strcmp(line,"exit") == 0){
+        if (strcmp(line, "exit") == 0) {
             exit(1);
         }
 
+        free(line);
+
     } while (1);
-    printf("Line : %s", line);
 }
 
 /*
