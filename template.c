@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <unistd.h>
+#include <sys/wait.h>
 
 // TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
 char* readLine() {
@@ -33,16 +34,64 @@ char* readLine() {
     return allocated;
 }
 
+
+char **parse(char *string) {
+    int no_of_tokens = 0;
+
+    // Copy original string
+    unsigned long len = strlen(string);
+    char *string_copy = (char *) malloc(len + 1);
+    strcpy(string_copy, string);
+
+    // Find number of tokens
+    if (strtok(string_copy, " ") != NULL) {
+        ++no_of_tokens;
+        while(strtok(NULL, " ") != NULL) {
+            ++no_of_tokens;
+        }
+    }
+    free(string_copy);
+
+    // Create tokens
+    char **args = malloc(sizeof(char *) * no_of_tokens);
+    args[0] = strtok(string, " ");
+    int i = 1;
+    while (i < no_of_tokens) {
+        args[i] = strtok(string, " ");
+        ++i;
+    }
+    printf("%i\n", no_of_tokens);
+    return args;
+}
+
+void exec_command(char **args) {
+    pid_t pid;
+
+    // Child process
+    if ((pid = fork()) == 0) {
+        execvp(*args, args);
+    } else {
+        wait(NULL);
+    }
+}
+
 void shell() {
+    char *line;
+    char **args;
+
     do {
-        char *line = readLine();
+        line = readLine();
         printf("Line : %s \n", line);
 
-        if (strcmp(line, "exit") == 0) {
+        args = parse(line);
+        printf("First argument : %s\n", args[0]);
+        if (strcmp(args[0], "exit") == 0) {
             exit(1);
         }
+        exec_command(args);
 
         free(line);
+        free(args);
 
     } while (1);
 }
