@@ -53,23 +53,33 @@ char **parse(char *string) {
     free(string_copy);
 
     // Create tokens
-    char **args = malloc(sizeof(char *) * no_of_tokens);
-    args[0] = strtok(string, " ");
+    char **args = malloc(sizeof(char *) * no_of_tokens + 1);
+    args[0] = strtok(string, " \n");
     int i = 1;
     while (i < no_of_tokens) {
-        args[i] = strtok(string, " ");
+        args[i] = strtok(NULL, " \n");
         ++i;
     }
+    args[i] = NULL;
     printf("%i\n", no_of_tokens);
     return args;
 }
 
 void exec_command(char **args) {
     pid_t pid;
+    int status;
+    pid = fork();
+
+    if (pid < 0) {
+        fprintf(stderr, "Fork failed.");
 
     // Child process
-    if ((pid = fork()) == 0) {
-        execvp(*args, args);
+    } else if (pid == 0) {
+        if (execvp(*args, args) < 0) {
+            fprintf(stderr, "execvp failed.");
+        }
+
+    // Parent process
     } else {
         wait(NULL);
     }
@@ -85,6 +95,7 @@ void shell() {
 
         args = parse(line);
         printf("First argument : %s\n", args[0]);
+        printf("First argument : %s\n", args[1]);
         if (strcmp(args[0], "exit") == 0) {
             exit(1);
         }
