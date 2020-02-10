@@ -71,12 +71,13 @@ void exec_command(char **args) {
     pid = fork();
 
     if (pid < 0) {
-        fprintf(stderr, "Fork failed.");
+        fprintf(stderr, "Fork failed.\n");
 
     // Child process
     } else if (pid == 0) {
         if (execvp(*args, args) < 0) {
-            fprintf(stderr, "execvp failed.");
+            fprintf(stderr, "execvp failed.\n");
+            exit(-1);
         }
 
     // Parent process
