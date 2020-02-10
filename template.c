@@ -34,38 +34,90 @@ char* readLine() {
     return allocated;
 }
 
-
-char **parse(char *string) {
-    int no_of_tokens = 0;
-
-    // Copy original string
-    unsigned long len = strlen(string);
-    char *string_copy = (char *) malloc(len + 1);
-    strcpy(string_copy, string);
-
-    // Find number of tokens
-    if (strtok(string_copy, " ") != NULL) {
-        ++no_of_tokens;
-        while(strtok(NULL, " ") != NULL) {
-            ++no_of_tokens;
+int find_no_of_cmds(const char *line) {
+    int no_of_cmds = 0;
+    // Copy original line
+    char *line_copy = strdup(line);
+    if (strtok(line_copy, "&&||") != NULL) {
+        ++no_of_cmds;
+        while(strtok(NULL, "&&||") != NULL) {
+            ++no_of_cmds;
         }
     }
-    free(string_copy);
+    free(line_copy);
+    return no_of_cmds;
+}
+
+char find_operator(const char *line, char *op_ptr) {
+    return line[op_ptr - line + strlen(op_ptr) + 1];
+}
+
+char *parse_commands(char *line, char **saveptr) {
+    return strtok_r(line, "&&||", saveptr);
+}
+
+char **parse_args(char *cmd) {
+    int no_of_args = 0;
+
+    // Copy original command
+    char *cmd_copy = strdup(cmd);
+//    unsigned long len = strlen(cmd);
+//    char *cmd_copy = (char *) malloc(len + 1);
+//    strcpy(cmd_copy, cmd);
+
+    // Find number of tokens
+    if (strtok(cmd_copy, " ") != NULL) {
+        ++no_of_args;
+        while(strtok(NULL, " ") != NULL) {
+            ++no_of_args;
+        }
+    }
+    free(cmd_copy);
 
     // Create tokens
-    char **args = malloc(sizeof(char *) * no_of_tokens + 1);
-    args[0] = strtok(string, " \n");
+    char **args = malloc(sizeof(char *) * no_of_args + 1);
+    args[0] = strtok(cmd, " \n");
     int i = 1;
-    while (i < no_of_tokens) {
+    while (i < no_of_args) {
         args[i] = strtok(NULL, " \n");
         ++i;
     }
     args[i] = NULL;
-    printf("%i\n", no_of_tokens);
     return args;
 }
 
-void exec_command(char **args) {
+
+//char **parse(char *string) {
+//    int no_of_tokens = 0;
+//
+//    // Copy original string
+//    unsigned long len = strlen(string);
+//    char *string_copy = (char *) malloc(len + 1);
+//    strcpy(string_copy, string);
+//
+//    // Find number of tokens
+//    if (strtok(string_copy, " ") != NULL) {
+//        ++no_of_tokens;
+//        while(strtok(NULL, " ") != NULL) {
+//            ++no_of_tokens;
+//        }
+//    }
+//    free(string_copy);
+//
+//    // Create tokens
+//    char **args = malloc(sizeof(char *) * no_of_tokens + 1);
+//    args[0] = strtok(string, " \n");
+//    int i = 1;
+//    while (i < no_of_tokens) {
+//        args[i] = strtok(NULL, " \n");
+//        ++i;
+//    }
+//    args[i] = NULL;
+//    printf("%i\n", no_of_tokens);
+//    return args;
+//}
+
+int exec_command(char **args) {
     pid_t pid;
     int status;
     pid = fork();
@@ -82,28 +134,64 @@ void exec_command(char **args) {
 
     // Parent process
     } else {
-        wait(NULL);
+        //while(wait(&status) != pid)
+        waitpid(pid, &status, 0);
+        if (WEXITSTATUS(status) == 0) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }
 
 void shell() {
     char *line;
+    char *line_copy;
+    char *cmd;
     char **args;
+    char *saveptr;
+    char op;
+    int no_of_cmds;
+    int cmd_idx = 0;
 
     do {
         line = readLine();
         printf("Line : %s \n", line);
 
-        args = parse(line);
-        printf("First argument : %s\n", args[0]);
-        printf("First argument : %s\n", args[1]);
-        if (strcmp(args[0], "exit") == 0) {
-            exit(1);
-        }
-        exec_command(args);
+        line_copy = strdup(line);
+        no_of_cmds = find_no_of_cmds(line_copy);
+        //cmd = parse_commands(line_copy);
+        for (cmd = parse_commands(line_copy, &saveptr) ; cmd != NULL ; cmd = parse_commands(NULL,&saveptr)) {
+            op = find_operator(line, cmd);
+            args = parse_args(cmd);
 
-        free(line);
-        free(args);
+            if (strcmp(args[0], "exit") == 0) {
+                exit(0);
+            }
+
+            int ret_val = exec_command(args);
+            free(args);
+            if (++cmd_idx < no_of_cmds) {
+                if (ret_val == false) {
+                    if (op == '&') break;
+                    else continue;
+                } else {
+                    if (op == '|') break;
+                    else continue;
+                }
+            }
+        }
+
+//        args = parse(line);
+//        printf("First argument : %s\n", args[0]);
+//        printf("Second argument : %s\n", args[1]);
+//        if (strcmp(args[0], "exit") == 0) {
+//            exit(0);
+//        }
+//        exec_command(args);
+//
+//        free(line);
+//        free(args);
 
     } while (1);
 }
