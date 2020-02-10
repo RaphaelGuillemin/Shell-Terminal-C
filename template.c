@@ -75,7 +75,7 @@ char **parse_args(char *cmd) {
     free(cmd_copy);
 
     // Create tokens
-    char **args = malloc(sizeof(char *) * no_of_args + 1);
+    char **args = malloc(sizeof(char *) * (no_of_args + 1));
     args[0] = strtok(cmd, " \n");
     int i = 1;
     while (i < no_of_args) {
@@ -125,16 +125,15 @@ int exec_command(char **args) {
     if (pid < 0) {
         fprintf(stderr, "Fork failed.\n");
 
-    // Child process
+    // Child process|
     } else if (pid == 0) {
         if (execvp(*args, args) < 0) {
-            fprintf(stderr, "execvp failed.\n");
+            printf("bash : %s: command not found.\n",args[0]);
             exit(-1);
         }
 
     // Parent process
     } else {
-        //while(wait(&status) != pid)
         waitpid(pid, &status, 0);
         if (WEXITSTATUS(status) == 0) {
             return true;
@@ -160,9 +159,12 @@ void shell() {
 
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
+        cmd_idx = 0;
         //cmd = parse_commands(line_copy);
         for (cmd = parse_commands(line_copy, &saveptr) ; cmd != NULL ; cmd = parse_commands(NULL,&saveptr)) {
-            op = find_operator(line, cmd);
+            if (no_of_cmds - cmd_idx > 1) {
+                op = find_operator(line, cmd);
+            }
             args = parse_args(cmd);
 
             if (strcmp(args[0], "exit") == 0) {
@@ -173,12 +175,21 @@ void shell() {
             free(args);
             if (++cmd_idx < no_of_cmds) {
                 if (ret_val == false) {
-                    if (op == '&') break;
+                    if (op == '&') {
+                        free(line_copy);
+                        break;
+                    }
                     else continue;
                 } else {
-                    if (op == '|') break;
+                    if (op == '|') {
+                        free(line_copy);
+                        break;
+                    }
                     else continue;
                 }
+            } else {
+                free(line_copy);
+                break;
             }
         }
 
