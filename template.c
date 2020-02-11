@@ -179,6 +179,7 @@ void shell() {
 
     do {
         line = readLine();
+        bool run_command = true;
         //printf("Line : %s \n", line);
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
@@ -191,6 +192,7 @@ void shell() {
             if(cmd_idx > 0){
                 ++cmd;
             }
+            // f followed by number in ascii else r followed by number in ascii
             if (cmd[0] == 'f' && cmd[1] >= 48 && cmd[1] <= 57){
                 repeat_command = 0;
                 ret_val = true;
@@ -199,13 +201,14 @@ void shell() {
                 repeat_command = find_repeat_amount(cmd);
                 cmd = trim_command(cmd);
             }
+
             args = parse_args(cmd);
 
             if (strcmp(args[0], "exit") == 0) {
                 exit(0);
             }
 
-            for (int i = 0 ; i < repeat_command ; i++){
+            for (int i = 0 ; i < repeat_command && run_command; i++){
                 ret_val = exec_command(args);
             }
             free(args);
@@ -218,28 +221,16 @@ void shell() {
                     else continue;
                 } else {
                     if (op == '|') {
-                        free(line_copy);
-                        break;
+                        run_command = false;
+                    } else {
+                        run_command = true;
                     }
-                    else continue;
                 }
             } else {
                 free(line_copy);
                 break;
             }
         }
-
-//        args = parse(line);
-//        printf("First argument : %s\n", args[0]);
-//        printf("Second argument : %s\n", args[1]);
-//        if (strcmp(args[0], "exit") == 0) {
-//            exit(0);
-//        }
-//        exec_command(args);
-//
-//        free(line);
-//        free(args);
-
     } while (1);
 }
 
