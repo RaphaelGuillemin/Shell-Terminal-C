@@ -143,6 +143,29 @@ int exec_command(char **args) {
     }
 }
 
+int find_repeat_amount(const char *command){
+    // Find number of tokens
+    char *cmd_copy = strdup(command);
+    if (strtok(cmd_copy, "(") != NULL) {
+        char *line = strtok(cmd_copy, "(");
+        int nbr = atoi(++line);
+        free(cmd_copy);
+        return nbr;
+    }
+    free(cmd_copy);
+    return 1;
+}
+
+char* trim_command(const char* command){
+    char *first = strchr(command,'(');
+    char *start = ++first;
+    char *end = strchr(command,')');
+    char *line = malloc((sizeof(char)) * (end - start + 1));
+    memcpy( line, start, end - start );
+    line[end - start] = '\0';
+    return line;
+}
+
 void shell() {
     char *line;
     char *line_copy;
@@ -152,18 +175,29 @@ void shell() {
     char op;
     int no_of_cmds;
     int cmd_idx = 0;
+    int ret_val;
 
     do {
         line = readLine();
-        printf("Line : %s \n", line);
-
+        //printf("Line : %s \n", line);
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
         cmd_idx = 0;
-        //cmd = parse_commands(line_copy);
         for (cmd = parse_commands(line_copy, &saveptr) ; cmd != NULL ; cmd = parse_commands(NULL,&saveptr)) {
+            int repeat_command = 1;
             if (no_of_cmds - cmd_idx > 1) {
                 op = find_operator(line, cmd);
+            }
+            if(cmd_idx > 0){
+                ++cmd;
+            }
+            if (cmd[0] == 'f' && cmd[1] >= 48 && cmd[1] <= 57){
+                repeat_command = 0;
+                ret_val = true;
+            } else if (cmd[0] == 'r' && cmd[1] >= 48 && cmd[1] <= 57){
+                //convert ascii to number
+                repeat_command = find_repeat_amount(cmd);
+                cmd = trim_command(cmd);
             }
             args = parse_args(cmd);
 
@@ -171,7 +205,9 @@ void shell() {
                 exit(0);
             }
 
-            int ret_val = exec_command(args);
+            for (int i = 0 ; i < repeat_command ; i++){
+                ret_val = exec_command(args);
+            }
             free(args);
             if (++cmd_idx < no_of_cmds) {
                 if (ret_val == false) {
