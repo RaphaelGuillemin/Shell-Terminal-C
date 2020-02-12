@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+
+void shell();
+
 // TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
 char* readLine() {
     char *allocated = (char *) malloc(max_len + 1);
@@ -86,37 +89,6 @@ char **parse_args(char *cmd) {
     return args;
 }
 
-
-//char **parse(char *string) {
-//    int no_of_tokens = 0;
-//
-//    // Copy original string
-//    unsigned long len = strlen(string);
-//    char *string_copy = (char *) malloc(len + 1);
-//    strcpy(string_copy, string);
-//
-//    // Find number of tokens
-//    if (strtok(string_copy, " ") != NULL) {
-//        ++no_of_tokens;
-//        while(strtok(NULL, " ") != NULL) {
-//            ++no_of_tokens;
-//        }
-//    }
-//    free(string_copy);
-//
-//    // Create tokens
-//    char **args = malloc(sizeof(char *) * no_of_tokens + 1);
-//    args[0] = strtok(string, " \n");
-//    int i = 1;
-//    while (i < no_of_tokens) {
-//        args[i] = strtok(NULL, " \n");
-//        ++i;
-//    }
-//    args[i] = NULL;
-//    printf("%i\n", no_of_tokens);
-//    return args;
-//}
-
 int exec_command(char **args) {
     pid_t pid;
     int status;
@@ -168,7 +140,7 @@ char* trim_command(const char* command){
     char *line = malloc((sizeof(char)) * (end - start + 1));
     memcpy( line, start, end - start );
     line[end - start] = '\0';
-    return line;
+    return line;// TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
 }
 
 void shell() {
@@ -177,22 +149,28 @@ void shell() {
     char *cmd;
     char **args;
     char *saveptr;
-    char op;
+    char op = ' ';
     int no_of_cmds;
     int cmd_idx = 0;
-    int ret_val;
+    int ret_val = 0;
 
     do {
         line = readLine();
         bool run_command = true;
-        bool quiet = false;
-        //printf("Line : %s \n", line);
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
         cmd_idx = 0;
-        if (line[strlen(line)-1] == '&'){
-            quiet = true;
+
+        // background execution
+        if (line[strlen(line)-1] == '&') {
+            pid_t pid;
+            pid = fork();
+
+            if (pid == 0) {
+                shell();
+            }
         }
+
         for (cmd = parse_commands(line_copy, &saveptr) ; cmd != NULL ; cmd = parse_commands(NULL,&saveptr)) {
             long repeat_command = 1;
             bool r_function = false;
@@ -224,7 +202,7 @@ void shell() {
 
             args = parse_args(cmd);
 
-            if (strcmp(args[0], "exit") == 0) {
+            if (strcmp(args[0], "exit") == 0 && run_command) {
                 exit(0);
             }
 
@@ -240,11 +218,10 @@ void shell() {
             if (++cmd_idx < no_of_cmds) {
                 if (ret_val == false) {
                     if (op == '&') {
-                        free(line_copy);
-                        free(line);
-                        break;
+                        run_command = false;
+                    } else {
+                        run_command = true;
                     }
-                    else continue;
                 } else {
                     if (op == '|') {
                         run_command = false;
