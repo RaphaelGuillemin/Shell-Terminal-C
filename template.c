@@ -37,11 +37,22 @@ char* readLine() {
     return allocated;
 }
 
+bool isEmpty(const char *line){
+    while (*line != '\0'){
+        if (*line != 32 && *line != '\n'){
+            return false;
+        }
+        ++line;
+    }
+    return true;
+}
+
 int find_no_of_cmds(const char *line) {
     int no_of_cmds = 0;
     // Copy original line
     char *line_copy = strdup(line);
-    if (strtok(line_copy, "&&||") != NULL) {
+    char *return_ptr;
+    if ((return_ptr = strtok(line_copy, "&&||")) != NULL && !isEmpty(return_ptr)) {
         ++no_of_cmds;
         while(strtok(NULL, "&&||") != NULL) {
             ++no_of_cmds;
@@ -144,6 +155,8 @@ char* trim_command(const char* command){
 }
 
 void shell() {
+    start:
+    if (true){};
     char *line;
     char *line_copy;
     char *cmd;
@@ -153,87 +166,94 @@ void shell() {
     int no_of_cmds;
     int cmd_idx = 0;
     int ret_val = 0;
-
     do {
         line = readLine();
         bool run_command = true;
+        bool background = false;
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
         cmd_idx = 0;
+        if (no_of_cmds > 0) {
+            // background execution
+            if (line[strlen(line) - 1] == '&') {
+                pid_t pid;
+                pid = fork();
+                background = true;
 
-        // background execution
-        if (line[strlen(line)-1] == '&') {
-            pid_t pid;
-            pid = fork();
+                if (pid != 0) {
+                    goto start;
+                }
+            }
+            for (cmd = parse_commands(line_copy, &saveptr); cmd != NULL; cmd = parse_commands(NULL, &saveptr)) {
+                long repeat_command = 1;
+                bool r_function = false;
+                if (no_of_cmds - cmd_idx > 1) {
+                    op = find_operator(line, cmd);
+                }
+                if (cmd_idx > 0 && cmd[0] == ' ') {
+                    ++cmd;
+                }
+                // f followed by number in ascii else r followed by number in ascii
+                if (cmd[0] == 'f') {
+                    repeat_command = find_repeat_amount(cmd);
+                    if (repeat_command >= 0) {
+                        repeat_command = 0;
+                        ret_val = true;
+                    } else {
+                        repeat_command = 1;
+                    }
+                } else if (cmd[0] == 'r') {
+                    //convert ascii to number
+                    repeat_command = find_repeat_amount(cmd);
+                    if (repeat_command >= 0) {
+                        cmd = trim_command(cmd);
+                        r_function = true;
+                    } else {
+                        repeat_command = 1;
+                    }
+                }
 
-            if (pid == 0) {
-                shell();
-            }
-        }
+                args = parse_args(cmd);
 
-        for (cmd = parse_commands(line_copy, &saveptr) ; cmd != NULL ; cmd = parse_commands(NULL,&saveptr)) {
-            long repeat_command = 1;
-            bool r_function = false;
-            if (no_of_cmds - cmd_idx > 1) {
-                op = find_operator(line, cmd);
-            }
-            if(cmd_idx > 0 && cmd[0] == ' '){
-                ++cmd;
-            }
-            // f followed by number in ascii else r followed by number in ascii
-            if (cmd[0] == 'f'){
-                repeat_command = find_repeat_amount(cmd);
-                if (repeat_command >= 0) {
-                    repeat_command = 0;
+                if (strcmp(args[0], "exit") == 0 && run_command) {
+                    exit(0);
+                }
+
+                for (int i = 0; i < repeat_command && run_command; i++) {
+                    ret_val = exec_command(args);
+                }
+
+                if (r_function) {
                     ret_val = true;
-                } else {
-                    repeat_command = 1;
                 }
-            } else if (cmd[0] == 'r'){
-                //convert ascii to number
-                repeat_command = find_repeat_amount(cmd);
-                if (repeat_command >= 0) {
-                    cmd = trim_command(cmd);
-                    r_function = true;
-                } else {
-                    repeat_command = 1;
-                }
-            }
 
-            args = parse_args(cmd);
-
-            if (strcmp(args[0], "exit") == 0 && run_command) {
-                exit(0);
-            }
-
-            for (int i = 0 ; i < repeat_command && run_command; i++){
-                ret_val = exec_command(args);
-            }
-
-            if (r_function){
-                ret_val = true;
-            }
-
-            free(args);
-            if (++cmd_idx < no_of_cmds) {
-                if (ret_val == false) {
-                    if (op == '&') {
-                        run_command = false;
+                free(args);
+                if (++cmd_idx < no_of_cmds) {
+                    if (ret_val == false) {
+                        if (op == '&') {
+                            run_command = false;
+                        } else {
+                            run_command = true;
+                        }
                     } else {
-                        run_command = true;
+                        if (op == '|') {
+                            run_command = false;
+                        } else {
+                            run_command = true;
+                        }
                     }
                 } else {
-                    if (op == '|') {
-                        run_command = false;
-                    } else {
-                        run_command = true;
+                    free(line_copy);
+                    free(line);
+                    if (background) {
+                        exit(0);
                     }
+                    break;
                 }
-            } else {
-                free(line_copy);
-                free(line);
-                break;
             }
+        } else {
+            free(line_copy);
+            free(line);
         }
     } while (1);
 
