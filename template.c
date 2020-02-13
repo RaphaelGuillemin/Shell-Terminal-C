@@ -1,3 +1,5 @@
+// Travail de Laura Bégin et Raphaël Guillemin
+
 #define true 1
 #define false 0
 #define bool int
@@ -75,9 +77,6 @@ char **parse_args(char *cmd) {
 
     // Copy original command
     char *cmd_copy = strdup(cmd);
-//    unsigned long len = strlen(cmd);
-//    char *cmd_copy = (char *) malloc(len + 1);
-//    strcpy(cmd_copy, cmd);
 
     // Find number of tokens
     if (strtok(cmd_copy, " ") != NULL) {
@@ -108,7 +107,7 @@ int exec_command(char **args) {
     if (pid < 0) {
         fprintf(stderr, "Fork failed.\n");
 
-    // Child process|
+    // Child process
     } else if (pid == 0) {
         if (execvp(*args, args) < 0) {
             printf("bash : %s: command not found.\n",args[0]);
@@ -151,12 +150,11 @@ char* trim_command(const char* command){
     char *line = malloc((sizeof(char)) * (end - start + 1));
     memcpy( line, start, end - start );
     line[end - start] = '\0';
-    return line;// TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
+    return line;
 }
 
 void shell() {
-    start:
-    if (true){};
+    start: ;
     char *line;
     char *line_copy;
     char *cmd;
@@ -215,10 +213,12 @@ void shell() {
 
                 args = parse_args(cmd);
 
+                // check if command is exit
                 if (strcmp(args[0], "exit") == 0 && run_command) {
                     exit(0);
                 }
 
+                // execute commands
                 for (int i = 0; i < repeat_command && run_command; i++) {
                     ret_val = exec_command(args);
                 }
@@ -226,8 +226,9 @@ void shell() {
                 if (r_function) {
                     ret_val = true;
                 }
-
                 free(args);
+
+                // check for && and ||
                 if (++cmd_idx < no_of_cmds) {
                     if (ret_val == false) {
                         if (op == '&') {
@@ -245,6 +246,7 @@ void shell() {
                 } else {
                     free(line_copy);
                     free(line);
+                    // kill process if it's a background command
                     if (background) {
                         exit(0);
                     }
