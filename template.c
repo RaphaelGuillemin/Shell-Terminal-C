@@ -14,6 +14,8 @@
 
 void shell();
 
+// Reads a line entered in the shell
+// Returns the line as a char*
 char *readLine() {
     int curr_max_len = max_len;
     char *allocated = (char *) malloc(curr_max_len + 1);
@@ -40,6 +42,7 @@ char *readLine() {
     return allocated;
 }
 
+// Checks if a line has no commands, only empty characters
 bool isEmpty(const char *line){
     while (*line != '\0'){
         if (*line != 32 && *line != '\n'){
@@ -50,11 +53,12 @@ bool isEmpty(const char *line){
     return true;
 }
 
+// Find the number of commands in a line
 int find_no_of_cmds(const char *line) {
     int no_of_cmds = 0;
-    // Copy original line
-    char *line_copy = strdup(line);
     char *return_ptr;
+    char *line_copy = strdup(line); // Copy original line
+
     if ((return_ptr = strtok(line_copy, "&&||")) != NULL && !isEmpty(return_ptr)) {
         ++no_of_cmds;
         while(strtok(NULL, "&&||") != NULL) {
@@ -65,14 +69,19 @@ int find_no_of_cmds(const char *line) {
     return no_of_cmds;
 }
 
+// Find the operator separating 2 commands
+// Returns & or |
 char find_operator(const char *line, char *op_ptr) {
     return line[op_ptr - line + strlen(op_ptr) + 1];
 }
 
+// Parse a set of commands and tokenize each command
+// Commands are separated by && et ||
 char *parse_commands(char *line, char **saveptr) {
     return strtok_r(line, "&&||", saveptr);
 }
 
+// Parse a command and tokenize its tokens
 char **parse_args(char *cmd) {
     int no_of_args = 0;
 
@@ -100,6 +109,7 @@ char **parse_args(char *cmd) {
     return args;
 }
 
+// Execute linux commands
 int exec_command(char **args) {
     pid_t pid;
     int status;
@@ -126,6 +136,7 @@ int exec_command(char **args) {
     }
 }
 
+// Find the number of repetitions for r and f function calls
 long find_repeat_amount(const char *command){
     // Find number of tokens
     char *cmd_copy = strdup(command);
@@ -144,6 +155,7 @@ long find_repeat_amount(const char *command){
     return 1;
 }
 
+// Trim commands surrounded by parenthesis, used for r and f function calls
 char* trim_command(const char* command){
     char *first = strchr(command,'(');
     char *start = ++first;
@@ -154,17 +166,18 @@ char* trim_command(const char* command){
     return line;
 }
 
+// Linux shell implementation
 void shell() {
     start: ;
     char *line;
-    char *line_copy;
+    char *line_copy; // copy of a line to tokenize it (call to strtok)
     char *cmd;
-    char **args;
-    char *saveptr;
-    char op = ' ';
+    char **args; // array of args for a command
+    char *saveptr; // saved pointer for multiple calls to strtok_r
     int no_of_cmds;
+    char op = ' '; // operator between commands
     int cmd_idx = 0;
-    int ret_val = 0;
+    int ret_val = 0; // return value, 1 = successful command, 0 = failed command
     do {
         line = readLine();
         bool run_command = true;
@@ -172,6 +185,7 @@ void shell() {
         line_copy = strdup(line);
         no_of_cmds = find_no_of_cmds(line_copy);
         cmd_idx = 0;
+
         if (no_of_cmds > 0) {
             // background execution
             if (line[strlen(line) - 1] == '&') {
@@ -192,8 +206,9 @@ void shell() {
                 if (cmd_idx > 0 && cmd[0] == ' ') {
                     ++cmd;
                 }
-                // f followed by number in ascii else r followed by number in ascii
-                if (cmd[0] == 'f') {
+
+                // check if r or f function call
+                if (cmd[0] == 'f') { // f followed by number in ascii else r followed by number in ascii
                     repeat_command = find_repeat_amount(cmd);
                     if (repeat_command >= 0) {
                         repeat_command = 0;
@@ -211,7 +226,7 @@ void shell() {
                         repeat_command = 1;
                     }
                 }
-
+                // parse args of the command
                 args = parse_args(cmd);
 
                 // check if command is exit
@@ -224,6 +239,7 @@ void shell() {
                     ret_val = exec_command(args);
                 }
 
+                // consider all r function calls like success
                 if (r_function) {
                     ret_val = true;
                 }
@@ -254,7 +270,7 @@ void shell() {
                     break;
                 }
             }
-        } else {
+        } else { // No commands, we free the empty line and its copy
             free(line_copy);
             free(line);
         }
