@@ -3,7 +3,7 @@
 #define true 1
 #define false 0
 #define bool int
-#define max_len 2000
+#define max_len 128
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,26 +14,27 @@
 
 void shell();
 
-// TODO : gérer le max_len. Est-ce qu'on retourne une erreur ou on alloue dynamiquement?
-char* readLine() {
-    char *allocated = (char *) malloc(max_len + 1);
+char *readLine() {
+    int curr_max_len = max_len;
+    char *allocated = (char *) malloc(curr_max_len + 1);
 
     if (NULL == allocated) {
         return NULL;
     }
 
     size_t cc = 0;
-    for(; cc < max_len; ++cc){
+    while (cc < curr_max_len) {
         int chr = getc(stdin);
         if (EOF == chr || '\n' == chr) {
             break;
         } else {
             allocated[cc] = (char) chr;
         }
-    }
-    if (cc == max_len) {
-        free(allocated);
-        printf("Argument list too long.");
+        ++cc;
+        if (cc == curr_max_len) {
+            curr_max_len += curr_max_len;
+            allocated = realloc(allocated, curr_max_len);
+        }
     }
     allocated[cc] = '\0';
     return allocated;
