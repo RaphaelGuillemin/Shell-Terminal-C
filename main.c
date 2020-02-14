@@ -1,4 +1,5 @@
-// Travail de Laura Bégin et Raphaël Guillemin
+/* Laura Bégin 20093040
+Raphaël Guillemin 20129638*/
 
 #define true 1
 #define false 0
