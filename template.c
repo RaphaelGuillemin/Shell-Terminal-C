@@ -11,9 +11,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-
-void shell();
-
 // Reads a line entered in the shell
 // Returns the line as a char*
 char *readLine() {
