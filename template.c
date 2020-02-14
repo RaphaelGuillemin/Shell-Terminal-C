@@ -118,7 +118,12 @@ int exec_command(char **args) {
     // Child process
     } else if (pid == 0) {
         if (execvp(*args, args) < 0) {
-            printf("bash : %s: command not found.\n",args[0]);
+            printf("bash : %s",args[0]);
+            for (int i = 1 ; args[i] != NULL ; i++){
+                printf(" %s",args[i]);
+            }
+
+            printf(": command not found.\n");
             exit(-1);
         }
 
@@ -158,8 +163,12 @@ char* trim_command(const char* command){
     char *start = ++first;
     char *end = strchr(command,')');
     char *line = malloc((sizeof(char)) * (end - start + 1));
-    memcpy( line, start, end - start );
-    line[end - start] = '\0';
+    if (line != NULL) {
+        memcpy(line, start, end - start);
+        line[end - start] = '\0';
+    } else {
+        return NULL;
+    }
     return line;
 }
 
@@ -177,99 +186,105 @@ void shell() {
     int ret_val = 0; // return value, 1 = successful command, 0 = failed command
     do {
         line = readLine();
-        bool run_command = true;
-        bool background = false;
-        line_copy = strdup(line);
-        no_of_cmds = find_no_of_cmds(line_copy);
-        cmd_idx = 0;
+        if (line != NULL) {
+            bool run_command = true;
+            bool background = false;
+            line_copy = strdup(line);
+            no_of_cmds = find_no_of_cmds(line_copy);
+            cmd_idx = 0;
 
-        if (no_of_cmds > 0) {
-            // background execution
-            if (line[strlen(line) - 1] == '&') {
-                pid_t pid;
-                pid = fork();
-                background = true;
+            if (no_of_cmds > 0) {
+                // background execution
+                if (line[strlen(line) - 1] == '&') {
+                    pid_t pid;
+                    pid = fork();
+                    background = true;
 
-                if (pid != 0) {
-                    goto start;
-                }
-            }
-            for (cmd = parse_commands(line_copy, &saveptr); cmd != NULL; cmd = parse_commands(NULL, &saveptr)) {
-                long repeat_command = 1;
-                bool r_function = false;
-                if (no_of_cmds - cmd_idx > 1) {
-                    op = find_operator(line, cmd);
-                }
-                if (cmd_idx > 0 && cmd[0] == ' ') {
-                    ++cmd;
-                }
-
-                // check if r or f function call
-                if (cmd[0] == 'f') { // f followed by number in ascii else r followed by number in ascii
-                    repeat_command = find_repeat_amount(cmd);
-                    if (repeat_command >= 0) {
-                        repeat_command = 0;
-                        ret_val = true;
-                    } else {
-                        repeat_command = 1;
-                    }
-                } else if (cmd[0] == 'r') {
-                    //convert ascii to number
-                    repeat_command = find_repeat_amount(cmd);
-                    if (repeat_command >= 0) {
-                        cmd = trim_command(cmd);
-                        r_function = true;
-                    } else {
-                        repeat_command = 1;
+                    if (pid != 0) {
+                        goto start;
                     }
                 }
-                // parse args of the command
-                args = parse_args(cmd);
+                for (cmd = parse_commands(line_copy, &saveptr); cmd != NULL; cmd = parse_commands(NULL, &saveptr)) {
+                    long repeat_command = 1;
+                    bool r_function = false;
+                    if (no_of_cmds - cmd_idx > 1) {
+                        op = find_operator(line, cmd);
+                    }
+                    if (cmd_idx > 0 && cmd[0] == ' ') {
+                        ++cmd;
+                    }
 
-                // check if command is exit
-                if (strcmp(args[0], "exit") == 0 && run_command) {
-                    exit(0);
-                }
-
-                // execute commands
-                for (int i = 0; i < repeat_command && run_command; i++) {
-                    ret_val = exec_command(args);
-                }
-
-                // consider all r function calls like success
-                if (r_function) {
-                    ret_val = true;
-                }
-                free(args);
-
-                // check for && and ||
-                if (++cmd_idx < no_of_cmds) {
-                    if (ret_val == false) {
-                        if (op == '&') {
-                            run_command = false;
+                    // check if r or f function call
+                    if (cmd[0] == 'f') { // f followed by number in ascii else r followed by number in ascii
+                        repeat_command = find_repeat_amount(cmd);
+                        if (repeat_command >= 0) {
+                            repeat_command = 0;
+                            ret_val = true;
                         } else {
-                            run_command = true;
+                            repeat_command = 1;
                         }
-                    } else {
-                        if (op == '|') {
-                            run_command = false;
+                    } else if (cmd[0] == 'r') {
+                        //convert ascii to number
+                        repeat_command = find_repeat_amount(cmd);
+                        if (repeat_command >= 0) {
+                            cmd = trim_command(cmd);
+                            if (cmd == NULL){
+                                break;
+                            }
+                            r_function = true;
                         } else {
-                            run_command = true;
+                            repeat_command = 1;
                         }
                     }
-                } else {
-                    free(line_copy);
-                    free(line);
-                    // kill process if it's a background command
-                    if (background) {
+                    // parse args of the command
+                    args = parse_args(cmd);
+
+                    // check if command is exit
+                    if (strcmp(args[0], "exit") == 0 && run_command) {
                         exit(0);
                     }
-                    break;
+
+                    // execute commands
+                    for (int i = 0; i < repeat_command && run_command; i++) {
+                        ret_val = exec_command(args);
+                    }
+
+                    // consider all r function calls like success
+                    if (r_function) {
+                        ret_val = true;
+                        free(cmd);
+                    }
+                    free(args);
+
+                    // check for && and ||
+                    if (++cmd_idx < no_of_cmds) {
+                        if (ret_val == false) {
+                            if (op == '&') {
+                                run_command = false;
+                            } else {
+                                run_command = true;
+                            }
+                        } else {
+                            if (op == '|') {
+                                run_command = false;
+                            } else {
+                                run_command = true;
+                            }
+                        }
+                    } else {
+                        free(line_copy);
+                        free(line);
+                        // kill process if it's a background command
+                        if (background) {
+                            exit(0);
+                        }
+                        break;
+                    }
                 }
+            } else { // No commands, we free the empty line and its copy
+                free(line_copy);
+                free(line);
             }
-        } else { // No commands, we free the empty line and its copy
-            free(line_copy);
-            free(line);
         }
     } while (1);
 
